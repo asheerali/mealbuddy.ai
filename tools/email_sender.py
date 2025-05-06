@@ -4,25 +4,25 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 from langchain_core.tools import tool
+import re
 
 load_dotenv()
 @tool
-def send_email(subject: str, body: str):
+def send_email(subject: str, body: str, recipient_override: str = ""):
     """Sends an email with the given subject and body in HTML format."""
     sender = os.getenv("EMAIL_ADDRESS")
     password = os.getenv("EMAIL_PASSWORD")
-    recipient = os.getenv("RECEIVER_EMAIL")
+    recipient = recipient_override if recipient_override else os.getenv("RECEIVER_EMAIL")
 
-    # Fix body formatting BEFORE using it in f-string
-    formatted_body = body.replace('**', '<b>').replace('**', '</b>').replace('\n', '<br>')
+    # formatted_body = body.replace('**', '<b>').replace('**', '</b>').replace('\n', '<br>')
+    formatted_body = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', body).replace('\n', '<br>')
 
-    # Create the container (outer) email message
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = sender
     msg["To"] = recipient
 
-    # Create HTML body
     html_body = f"""
     <html>
       <body>
@@ -34,11 +34,9 @@ def send_email(subject: str, body: str):
     </html>
     """
 
-    # Attach the HTML part
     part = MIMEText(html_body, "html")
     msg.attach(part)
 
-    # Send the email
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
         server.login(sender, password)
         server.sendmail(sender, recipient, msg.as_string())
